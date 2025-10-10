@@ -2,10 +2,10 @@ import jwt
 from datetime import datetime, timedelta
 from config import Config
 
-def generate_token(user_id, email):
+def create_token(user_id):
+    """Create a JWT token for the given user_id."""
     payload = {
         'user_id': user_id,
-        'email': email,
         'exp': datetime.utcnow() + timedelta(hours=Config.JWT_EXPIRATION_HOURS),
         'iat': datetime.utcnow()
     }

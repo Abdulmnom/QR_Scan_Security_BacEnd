@@ -1,7 +1,7 @@
 import requests
 from config import Config
 
-def check_url_safety(url):
+def verify_link(url):
     api_key = Config.GOOGLE_SAFE_BROWSING_KEY
 
     if not api_key:

@@ -1,60 +1,91 @@
 from flask import Blueprint, request, jsonify
-from functools import wraps
-from models.history_model import History
-from utils.jwt_handler import verify_token, get_token_from_header
+from config import get_db_connection
+from utils.jwt_handler import verify_token
 
 history_bp = Blueprint('history', __name__, url_prefix='/history')
 
-def token_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        auth_header = request.headers.get('Authorization')
-        token = get_token_from_header(auth_header)
+def get_user_id_from_token():
+    """Extract user_id from JWT token in Authorization header."""
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return None
 
-        if not token:
-            return jsonify({'error': 'Token is missing'}), 401
+    token = auth_header.split(' ')[1]
+    payload = verify_token(token)
+    if not payload:
+        return None
 
-        payload = verify_token(token)
-
-        if not payload:
-            return jsonify({'error': 'Token is invalid or expired'}), 401
-
-        request.user_id = payload['user_id']
-        return f(*args, **kwargs)
-
-    return decorated
-
-@history_bp.route('', methods=['GET'])
-@token_required
-def get_history():
-    user_id = request.user_id
-
-    history_model = History()
-    history = history_model.get_user_history(user_id)
-
-    return jsonify({
-        'history': history
-    }), 200
+    return payload.get('user_id')
 
 @history_bp.route('/add', methods=['POST'])
-@token_required
 def add_history():
-    user_id = request.user_id
-    data = request.get_json()
+    """Add a scan result to user's history."""
+    try:
+        # Decode JWT to get user_id
+        user_id = get_user_id_from_token()
+        if not user_id:
+            return jsonify({'error': 'Valid JWT token required'}), 401
 
-    if not data or not data.get('url') or not data.get('result'):
-        return jsonify({'error': 'URL and result are required'}), 400
+        data = request.get_json()
 
-    url = data['url']
-    result = data['result']
+        # Validate input
+        if not data or not data.get('url') or not data.get('result'):
+            return jsonify({'error': 'URL and result are required'}), 400
 
-    if result not in ['safe', 'unsafe']:
-        return jsonify({'error': 'Result must be either "safe" or "unsafe"'}), 400
+        url = data['url'].strip()
+        result = data['result']
 
-    history_model = History()
-    scan_id = history_model.add_scan(user_id, url, result)
+        if not url:
+            return jsonify({'error': 'URL cannot be empty'}), 400
 
-    return jsonify({
-        'message': 'Scan added to history',
-        'id': scan_id
-    }), 201
+        if result not in ['safe', 'unsafe']:
+            return jsonify({'error': 'Result must be either "safe" or "unsafe"'}), 400
+
+        # Save record into history table with timestamp
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'INSERT INTO history (user_id, url, result) VALUES (?, ?, ?)',
+            (user_id, url, result)
+        )
+        conn.commit()
+        scan_id = cursor.lastrowid
+        conn.close()
+
+        return jsonify({'message': 'Scan added to history successfully'}), 201
+
+    except Exception as e:
+        return jsonify({'error': 'Internal server error'}), 500
+
+@history_bp.route('', methods=['GET'])
+def get_history():
+    """Get scan history for the logged-in user."""
+    try:
+        # Decode JWT to get user_id
+        user_id = get_user_id_from_token()
+        if not user_id:
+            return jsonify({'error': 'Valid JWT token required'}), 401
+
+        # Return list of scan records for the user
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'SELECT id, url, result, timestamp FROM history WHERE user_id = ? ORDER BY timestamp DESC',
+            (user_id,)
+        )
+        rows = cursor.fetchall()
+        conn.close()
+
+        history_list = []
+        for row in rows:
+            history_list.append({
+                'id': row['id'],
+                'url': row['url'],
+                'result': row['result'],
+                'timestamp': row['timestamp']
+            })
+
+        return jsonify(history_list), 200
+
+    except Exception as e:
+        return jsonify({'error': 'Internal server error'}), 500

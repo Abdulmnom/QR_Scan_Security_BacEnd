@@ -3,12 +3,14 @@ from flask_cors import CORS
 from routes.auth_routes import auth_bp
 from routes.scan_routes import scan_bp
 from routes.history_routes import history_bp
+from config import init_database
 import os
 
 app = Flask(__name__)
 CORS(app)
 
 os.makedirs('database', exist_ok=True)
+init_database()  # Initialize database tables
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(scan_bp)
@@ -22,7 +24,8 @@ def home():
         'endpoints': {
             'auth': {
                 'signup': 'POST /auth/signup',
-                'login': 'POST /auth/login'
+                'login': 'POST /auth/login',
+                'profile': 'GET /auth/me (requires auth)'
             },
             'scan': {
                 'scan_url': 'POST /scan'

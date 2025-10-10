@@ -1,26 +1,35 @@
 from flask import Blueprint, request, jsonify
-from utils.verify_link import check_url_safety
+from utils.verify_link import verify_link
 
 scan_bp = Blueprint('scan', __name__)
 
 @scan_bp.route('/scan', methods=['POST'])
 def scan_url():
-    data = request.get_json()
+    """Scan a URL for security threats."""
+    try:
+        data = request.get_json()
 
-    if not data or not data.get('url'):
-        return jsonify({'error': 'URL is required'}), 400
+        # Validate input
+        if not data or not data.get('url'):
+            return jsonify({'error': 'URL is required'}), 400
 
-    url = data['url']
+        url = data['url'].strip()
+        if not url:
+            return jsonify({'error': 'URL cannot be empty'}), 400
 
-    result = check_url_safety(url)
+        # Call helper to verify link
+        result = verify_link(url)
 
-    if result['status'] == 'error':
-        return jsonify({
-            'error': result['message']
-        }), 500
+        if result['status'] == 'safe':
+            return jsonify({'status': 'safe'}), 200
+        elif result['status'] == 'unsafe':
+            return jsonify({
+                'status': 'unsafe',
+                'details': result.get('threats', [])
+            }), 200
+        else:
+            # Error case
+            return jsonify({'error': result.get('message', 'Unknown error')}), 500
 
-    return jsonify({
-        'status': result['status'],
-        'url': url,
-        'threats': result.get('threats', [])
-    }), 200
+    except Exception as e:
+        return jsonify({'error': 'Internal server error'}), 500
