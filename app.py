@@ -33,7 +33,9 @@ def home():
             },
             'history': {
                 'get_history': 'GET /history (requires auth)',
-                'add_history': 'POST /history/add (requires auth)'
+                'add_history': 'POST /history or POST /history/add (requires auth)',
+                'delete_history_item': 'DELETE /history/<id> (requires auth)',
+                'clear_all_history': 'DELETE /history (requires auth)'
             }
         }
     }), 200
