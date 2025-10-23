@@ -7,10 +7,19 @@ from config import init_database
 import os
 
 app = Flask(__name__)
-CORS(app)
 
+# إعداد CORS للسماح بنطاق الفرونت اند
+CORS(app, origins=[
+    "http://localhost:5173",  # تطوير محلي
+    "https://secureqrscanner.netlify.app/",  # نطاق الفرونت اند
+    "https://your-render-frontend-url.onrender.com"  # رابط Render للفرونت اند
+])
+
+# إنشاء مجلد database إذا لم يكن موجوداً
 os.makedirs('database', exist_ok=True)
-init_database()  # Initialize database tables
+
+# تهيئة قاعدة البيانات
+init_database()
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(scan_bp)
@@ -49,4 +58,6 @@ def internal_error(error):
     return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    debug_mode = os.environ.get('FLASK_ENV') != 'production'
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)

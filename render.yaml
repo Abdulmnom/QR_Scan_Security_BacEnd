@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: qr-scanner-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: JWT_SECRET_KEY
+        fromSecret: jwt-secret
+      - key: GOOGLE_SAFE_BROWSING_KEY
+        fromSecret: google-api-key
+    databases:
+      - name: qr-scanner-db
+        databaseName: qr_scanner
+        user: qr_scanner_user
