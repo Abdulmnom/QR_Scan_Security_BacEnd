@@ -28,7 +28,8 @@ def home():
                 'profile': 'GET /auth/me (requires auth)'
             },
             'scan': {
-                'scan_url': 'POST /scan'
+                'scan_url': 'POST /scan',
+                'scan_image': 'POST /scan/image (multipart/form-data)'
             },
             'history': {
                 'get_history': 'GET /history (requires auth)',
